@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SoundPad</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080810; --surface: #10101e; --border: #1e1e3a;
+    --accent: #00f5ff; --accent2: #ff2d6b; --text: #e0e0ff; --dim: #4a4a6a;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    height: 100dvh; display: flex; flex-direction: column;
+    align-items: center; overflow: hidden;
+    background-image: radial-gradient(ellipse at 20% 50%, #0d0d2b 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 20%, #1a0020 0%, transparent 50%);
+  }
+  header {
+    width: 100%; padding: 10px 16px 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  h1 {
+    font-family: 'Orbitron', sans-serif; font-size: 1rem; font-weight: 900; letter-spacing: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .status { font-size: 0.55rem; color: var(--dim); letter-spacing: 2px; cursor: pointer; }
+  .tabs {
+    display: flex; width: 100%; max-width: 480px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .tab {
+    flex: 1; padding: 8px 0; text-align: center;
+    font-family: 'Orbitron', sans-serif; font-size: 0.65rem; letter-spacing: 2px;
+    color: var(--dim); cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.2s; user-select: none;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .pages { flex: 1; width: 100%; max-width: 480px; position: relative; overflow: hidden; }
+  .page {
+    position: absolute; inset: 0;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; padding: 12px; align-content: center;
+    opacity: 0; pointer-events: none; transform: translateX(40px);
+    transition: opacity 0.25s, transform 0.25s;
+  }
+  .page.active { opacity: 1; pointer-events: all; transform: translateX(0); }
+  .pad {
+    position: relative; aspect-ratio: 1;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px;
+    overflow: hidden; transition: transform 0.08s, border-color 0.15s;
+    -webkit-tap-highlight-color: transparent; user-select: none;
+  }
+  .pad::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(0,245,255,0.05) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .pad:hover::before { opacity: 1; }
+  .pad.active {
+    transform: scale(0.92); border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(0,245,255,0.4), inset 0 0 20px rgba(0,245,255,0.1);
+  }
+  .pad.has-sound { border-color: #2a2a4a; }
+  .pad.has-sound::after {
+    content: ''; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%);
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 6px var(--accent);
+  }
+  .pad-waves {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 0;
+    background: linear-gradient(0deg, rgba(0,245,255,0.15), transparent);
+    transition: height 0.3s ease-out;
+  }
+  .pad.active .pad-waves { height: 100%; }
+  .pad-num {
+    font-family: 'Orbitron', sans-serif; font-size: 1.3rem; font-weight: 700;
+    color: var(--dim); transition: color 0.15s;
+  }
+  .pad.active .pad-num, .pad.has-sound .pad-num { color: var(--accent); }
+  .pad-label {
+    font-size: 0.5rem; letter-spacing: 1px; color: var(--dim);
+    text-align: center; padding: 0 5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 90%; text-transform: uppercase;
+  }
+  .pad.has-sound .pad-label { color: var(--text); }
+  .controls {
+    width: 100%; max-width: 480px; padding: 8px 12px 14px;
+    display: flex; gap: 8px; flex-shrink: 0;
+  }
+  .btn {
+    flex: 1; padding: 9px; background: transparent; border: 1px solid var(--border);
+    border-radius: 8px; color: var(--dim); font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem; letter-spacing: 2px; cursor: pointer; text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .btn:hover { border-color: var(--accent2); color: var(--accent2); }
+  .btn-accent { border-color: var(--accent) !important; color: var(--accent) !important; }
+  .btn-danger { border-color: var(--accent2) !important; color: var(--accent2) !important; }
+  input[type=file] { display: none; }
+  .modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+  }
+  .modal.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border: 1px solid var(--accent); border-radius: 16px;
+    padding: 22px; width: 90%; max-width: 340px; box-shadow: 0 0 40px rgba(0,245,255,0.2);
+  }
+  .modal-box h2 {
+    font-family: 'Orbitron', sans-serif; font-size: 0.8rem; letter-spacing: 3px;
+    color: var(--accent); margin-bottom: 14px; text-transform: uppercase;
+  }
+  .modal-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 12px; color: var(--text); font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem; margin-bottom: 10px; outline: none;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .modal-actions .btn { padding: 9px 0; }
+  .scan-line {
+    position: fixed; top: -100%; left: 0; width: 100%; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scan 4s linear infinite; pointer-events: none; opacity: 0.3;
+  }
+  @keyframes scan { to { top: 110%; } }
+</style>
+</head>
+<body>
+<div class="scan-line"></div>
+<header>
+  <h1>SOUNDPAD</h1>
+  <div class="status" id="status">36 PADS // READY</div>
+</header>
+<div class="tabs">
+  <div class="tab active" onclick="switchPage(0)">PAGE A</div>
+  <div class="tab" onclick="switchPage(1)">PAGE B</div>
+  <div class="tab" onclick="switchPage(2)">PAGE C</div>
+</div>
+<div class="pages" id="pages"></div>
+<div class="controls">
+  <button class="btn" onclick="exportConfig()">EXPORT</button>
+  <button class="btn" onclick="importConfig()">IMPORT</button>
+  <button class="btn btn-danger" onclick="clearAll()">RESET</button>
+</div>
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h2 id="modal-title">PAD</h2>
+    <input class="modal-input" id="modal-label" placeholder="Nom du pad..." maxlength="20">
+    <button class="btn btn-accent" onclick="pickFile()" style="width:100%;margin-bottom:8px">🎵 Choisir un son</button>
+    <div id="modal-filename" style="font-size:0.58rem;color:var(--dim);margin-bottom:10px;min-height:14px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="clearPad()">Suppr.</button>
+      <button class="btn btn-accent" onclick="savePad()">Sauver</button>
+      <button class="btn" onclick="closeModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="filePicker" accept="audio/*">
+<input type="file" id="importPicker" accept=".json">
+<script>
+const PAGES=3, PADS=12, TOTAL=PAGES*PADS;
+let state=loadState(), editingPad=null, pendingAudio=null, audioCtx=null;
+const activeSources={}, buffers={};
+
+function getCtx(){
+  if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+function loadState(){ try{return JSON.parse(localStorage.getItem('sp3'))||{};}catch{return{};} }
+function saveState(){ localStorage.setItem('sp3',JSON.stringify(state)); }
+
+// Build grid
+const pagesEl=document.getElementById('pages');
+for(let p=0;p<PAGES;p++){
+  const page=document.createElement('div');
+  page.className='page'+(p===0?' active':'');
+  page.id='page'+p;
+  for(let i=0;i<PADS;i++){
+    const idx=p*PADS+i;
+    const pad=document.createElement('div');
+    pad.className='pad'+(state[idx]?.b64?' has-sound':'');
+    pad.id='pad'+idx;
+    pad.innerHTML=`<div class="pad-waves"></div>
+      <div class="pad-num">${String(i+1).padStart(2,'0')}</div>
+      <div class="pad-label" id="lbl${idx}">${state[idx]?.label||'—'}</div>`;
+    // Long press = edit, short press = play
+    pad.addEventListener('pointerdown', e=>{
+      e.preventDefault();
+      pad._pt=setTimeout(()=>{ pad._long=true; openModal(idx); },600);
+      pad._long=false;
+    });
+    pad.addEventListener('pointerup', ()=>{
+      clearTimeout(pad._pt);
+      if(!pad._long) triggerPad(idx);
+    });
+    pad.addEventListener('pointercancel',()=>clearTimeout(pad._pt));
+    pad.addEventListener('contextmenu',e=>{ e.preventDefault(); openModal(idx); });
+    page.appendChild(pad);
+  }
+  pagesEl.appendChild(page);
+}
+
+function switchPage(p){
+  document.querySelectorAll('.page').forEach((el,i)=>el.classList.toggle('active',i===p));
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',i===p));
+}
+
+async function getBuffer(idx){
+  const d=state[idx];
+  if(!d?.b64) return null;
+  if(buffers[idx]) return buffers[idx];
+  const bin=atob(d.b64), arr=new Uint8Array(bin.length);
+  for(let j=0;j<bin.length;j++) arr[j]=bin.charCodeAt(j);
+  try{ buffers[idx]=await getCtx().decodeAudioData(arr.buffer); return buffers[idx]; }
+  catch{ return null; }
+}
+
+async function triggerPad(idx){
+  const pad=document.getElementById('pad'+idx);
+  pad.classList.add('active');
+  setTimeout(()=>pad.classList.remove('active'),200);
+  if(!state[idx]?.b64) return;
+  const buf=await getBuffer(idx);
+  if(!buf) return;
+  // Stop same pad if already playing → no overlap
+  if(activeSources[idx]){ try{activeSources[idx].stop();}catch{} delete activeSources[idx]; }
+  const ctx=getCtx(), src=ctx.createBufferSource();
+  src.buffer=buf; src.connect(ctx.destination); src.start();
+  activeSources[idx]=src;
+  const pl=['A','B','C'][Math.floor(idx/PADS)], pn=String((idx%PADS)+1).padStart(2,'0');
+  document.getElementById('status').textContent=`${pl}${pn} // PLAYING`;
+  src.onended=()=>{ delete activeSources[idx]; document.getElementById('status').textContent='36 PADS // READY'; };
+}
+
+function openModal(idx){
+  editingPad=idx; pendingAudio=null;
+  const pl=['A','B','C'][Math.floor(idx/PADS)], pn=String((idx%PADS)+1).padStart(2,'0');
+  document.getElementById('modal-title').textContent=`PAGE ${pl} — PAD ${pn}`;
+  document.getElementById('modal-label').value=state[idx]?.label||'';
+  document.getElementById('modal-filename').textContent=state[idx]?.filename||'';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); editingPad=null; }
+function pickFile(){ document.getElementById('filePicker').click(); }
+
+document.getElementById('filePicker').onchange=e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const b64=btoa(String.fromCharCode(...new Uint8Array(ev.target.result)));
+    pendingAudio={b64,filename:file.name};
+    document.getElementById('modal-filename').textContent=file.name;
+    if(!document.getElementById('modal-label').value)
+      document.getElementById('modal-label').value=file.name.replace(/\.[^.]+$/,'').slice(0,20);
+  };
+  r.readAsArrayBuffer(file); e.target.value='';
+};
+
+function savePad(){
+  const label=document.getElementById('modal-label').value.trim()||`PAD ${editingPad+1}`;
+  if(pendingAudio){state[editingPad]={label,...pendingAudio};delete buffers[editingPad];}
+  else if(state[editingPad]) state[editingPad].label=label;
+  else state[editingPad]={label};
+  saveState(); updatePad(editingPad); closeModal();
+}
+function clearPad(){
+  if(activeSources[editingPad]){try{activeSources[editingPad].stop();}catch{} delete activeSources[editingPad];}
+  delete state[editingPad]; delete buffers[editingPad];
+  saveState(); updatePad(editingPad); closeModal();
+}
+function updatePad(idx){
+  document.getElementById('pad'+idx).classList.toggle('has-sound',!!state[idx]?.b64);
+  document.getElementById('lbl'+idx).textContent=state[idx]?.label||'—';
+}
+function clearAll(){
+  if(!confirm('Effacer tous les pads ?')) return;
+  Object.values(activeSources).forEach(s=>{try{s.stop();}catch{}});
+  state={}; Object.keys(buffers).forEach(k=>delete buffers[k]);
+  saveState(); for(let i=0;i<TOTAL;i++) updatePad(i);
+}
+function exportConfig(){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(state)],{type:'application/json'}));
+  a.download='soundpad-config.json'; a.click();
+}
+function importConfig(){ document.getElementById('importPicker').click(); }
+document.getElementById('importPicker').onchange=e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      state=JSON.parse(ev.target.result);
+      Object.keys(buffers).forEach(k=>delete buffers[k]);
+      saveState(); for(let i=0;i<TOTAL;i++) updatePad(i);
+    }catch{alert('Fichier invalide');}
+  };
+  r.readAsText(file); e.target.value='';
+};
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault(); deferredPrompt=e;
+  const st=document.getElementById('status');
+  st.textContent="↓ INSTALLER L'APP";
+  st.onclick=()=>{ deferredPrompt.prompt(); st.onclick=null; st.textContent='36 PADS // READY'; };
+});
+</script>
+</body>
+</html>
